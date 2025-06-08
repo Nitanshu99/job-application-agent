@@ -1,0 +1,85 @@
+version: "3.8"
+
+services:
+  # Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: jobautomation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # Backend API
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/jobautomation
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./backend:/app
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Model Services
+  phi3-service:
+    build: ./models/phi3
+    ports:
+      - "8001:8001"
+    deploy:
+      resources:
+        reservations:
+          memory: 2G
+
+  gemma-service:
+    build: ./models/gemma
+    ports:
+      - "8002:8002"
+    deploy:
+      resources:
+        reservations:
+          memory: 4G
+
+  mistral-service:
+    build: ./models/mistral
+    ports:
+      - "8003:8003"
+    deploy:
+      resources:
+        reservations:
+          memory: 3G
+
+  # Nginx
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - api
+
+volumes:
+  postgres_data:

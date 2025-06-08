@@ -1,0 +1,26 @@
+# Custom job portals configuration
+portals:
+  - name: "Google Careers"
+    url: "https://careers.google.com/jobs/results/"
+    type: "company"
+    selectors:
+      job_title: ".gc-card__title"
+      job_link: ".gc-card__title a"
+      location: ".gc-card__location"
+    rate_limit: 1
+
+  - name: "GitHub Jobs"
+    url: "https://jobs.github.com/positions"
+    type: "job_board"
+    api_endpoint: "https://jobs.github.com/positions.json"
+    requires_auth: false
+
+  - name: "LinkedIn Jobs"
+    url: "https://www.linkedin.com/jobs/search/"
+    type: "job_board"
+    selectors:
+      job_title: ".base-search-card__title"
+      job_link: ".base-card__full-link"
+      company: ".base-search-card__subtitle"
+      location: ".job-search-card__location"
+    rate_limit: 0.5
