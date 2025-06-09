@@ -1,3 +1,5 @@
+"""Job-related endpoints for the job automation system."""
+
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -39,9 +41,38 @@ async def get_jobs(
     industry: Optional[str] = Query(None, description="Industry filter"),
     sort_by: str = Query("created_at", description="Sort field"),
     sort_order: str = Query("desc", description="Sort order (asc/desc)")
-):
+) -> List[JobResponse]:
     """
     Get paginated list of jobs with optional filtering and sorting.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param limit: Maximum number of jobs to return
+    :type limit: int
+    :param offset: Number of jobs to skip
+    :type offset: int
+    :param title: Filter by job title
+    :type title: Optional[str]
+    :param company: Filter by company name
+    :type company: Optional[str]
+    :param location: Filter by location
+    :type location: Optional[str]
+    :param remote: Filter remote jobs
+    :type remote: Optional[bool]
+    :param salary_min: Minimum salary filter
+    :type salary_min: Optional[int]
+    :param employment_type: Employment type filter
+    :type employment_type: Optional[str]
+    :param industry: Industry filter
+    :type industry: Optional[str]
+    :param sort_by: Sort field
+    :type sort_by: str
+    :param sort_order: Sort order (asc/desc)
+    :type sort_order: str
+    :return: List of jobs matching criteria
+    :rtype: List[JobResponse]
     """
     query = db.query(Job)
     
@@ -86,9 +117,19 @@ async def get_job(
     job_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> JobResponse:
     """
     Get specific job by ID.
+    
+    :param job_id: Job ID to retrieve
+    :type job_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Job details
+    :rtype: JobResponse
+    :raises HTTPException: If job not found
     """
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
@@ -105,9 +146,18 @@ async def search_jobs(
     search_request: JobSearchRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> List[JobMatchingResult]:
     """
     Advanced job search with AI-powered matching and scoring.
+    
+    :param search_request: Job search criteria
+    :type search_request: JobSearchRequest
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: List of matching jobs with scores
+    :rtype: List[JobMatchingResult]
     """
     job_service = JobService(db)
     
@@ -127,9 +177,21 @@ async def scrape_jobs(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, Any]:
     """
     Initiate job scraping from specified sources.
+    
+    :param scraping_request: Scraping configuration
+    :type scraping_request: ScrapingRequest
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Scraping initiation confirmation
+    :rtype: Dict[str, Any]
+    :raises HTTPException: If user lacks permissions
     """
     if not current_user.is_superuser:
         raise HTTPException(
@@ -151,9 +213,14 @@ async def scrape_jobs(
     }
 
 
-async def _scrape_jobs_background(scraping_request: ScrapingRequest, db: Session):
+async def _scrape_jobs_background(scraping_request: ScrapingRequest, db: Session) -> None:
     """
     Background task to scrape jobs from various sources.
+    
+    :param scraping_request: Scraping configuration
+    :type scraping_request: ScrapingRequest
+    :param db: Database session
+    :type db: Session
     """
     scraper_factory = ScraperFactory()
     
@@ -208,9 +275,21 @@ async def get_job_recommendations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     limit: int = Query(20, description="Number of recommendations to return")
-):
+) -> List[JobMatchingResult]:
     """
     Get personalized job recommendations for a user.
+    
+    :param user_id: Target user ID
+    :type user_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param limit: Number of recommendations to return
+    :type limit: int
+    :return: List of recommended jobs
+    :rtype: List[JobMatchingResult]
+    :raises HTTPException: If user not found or insufficient permissions
     """
     # Check permissions
     if current_user.id != user_id and not current_user.is_superuser:
@@ -240,9 +319,19 @@ async def analyze_job_posting(
     job_url: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, Any]:
     """
     Analyze a job posting from URL and extract structured information.
+    
+    :param job_url: URL of job posting to analyze
+    :type job_url: str
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Job analysis results
+    :rtype: Dict[str, Any]
+    :raises HTTPException: If analysis fails
     """
     job_service = JobService(db)
     
@@ -261,9 +350,18 @@ async def get_job_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     days: int = Query(30, description="Number of days to analyze")
-):
+) -> JobAnalytics:
     """
     Get job market analytics and trends.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param days: Number of days to analyze
+    :type days: int
+    :return: Job market analytics
+    :rtype: JobAnalytics
     """
     from datetime import datetime, timedelta
     
@@ -276,10 +374,10 @@ async def get_job_analytics(
     total_jobs = len(recent_jobs)
     
     # Company distribution
-    company_counts = {}
-    location_counts = {}
-    industry_counts = {}
-    employment_type_counts = {}
+    company_counts: Dict[str, int] = {}
+    location_counts: Dict[str, int] = {}
+    industry_counts: Dict[str, int] = {}
+    employment_type_counts: Dict[str, int] = {}
     
     salary_data = []
     
@@ -309,7 +407,7 @@ async def get_job_analytics(
             })
     
     # Calculate salary statistics
-    salary_stats = {}
+    salary_stats: Dict[str, float] = {}
     if salary_data:
         avg_salaries = [s["avg"] for s in salary_data]
         salary_stats = {
@@ -339,9 +437,19 @@ async def bulk_import_jobs(
     jobs_data: List[JobCreate],
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, Any]:
     """
     Bulk import jobs from external data source.
+    
+    :param jobs_data: List of job data to import
+    :type jobs_data: List[JobCreate]
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Import results summary
+    :rtype: Dict[str, Any]
+    :raises HTTPException: If user lacks permissions
     """
     if not current_user.is_superuser:
         raise HTTPException(
@@ -391,9 +499,19 @@ async def delete_job(
     job_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Delete a job (admin only).
+    
+    :param job_id: Job ID to delete
+    :type job_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Deletion confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If job not found or insufficient permissions
     """
     if not current_user.is_superuser:
         raise HTTPException(
@@ -415,9 +533,14 @@ async def delete_job(
 
 
 @router.get("/sources/supported")
-async def get_supported_sources(current_user: User = Depends(get_current_active_user)):
+async def get_supported_sources(current_user: User = Depends(get_current_active_user)) -> Dict[str, List[Dict[str, Any]]]:
     """
     Get list of supported job sources for scraping.
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: List of supported job sources
+    :rtype: Dict[str, List[Dict[str, Any]]]
     """
     return {
         "sources": [
@@ -445,9 +568,19 @@ async def bookmark_job(
     job_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Bookmark a job for later reference.
+    
+    :param job_id: Job ID to bookmark
+    :type job_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Bookmark confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If job not found
     """
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
@@ -466,9 +599,19 @@ async def remove_bookmark(
     job_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Remove bookmark from a job.
+    
+    :param job_id: Job ID to remove bookmark from
+    :type job_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Bookmark removal confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If job not found
     """
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:

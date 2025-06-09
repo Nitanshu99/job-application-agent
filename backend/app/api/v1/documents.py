@@ -1,3 +1,5 @@
+"""Document generation endpoints for the job automation system."""
+
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -36,9 +38,22 @@ async def get_documents(
     document_type: Optional[str] = Query(None, description="Filter by document type"),
     limit: int = Query(50, description="Maximum number of documents to return"),
     offset: int = Query(0, description="Number of documents to skip")
-):
+) -> List[DocumentResponse]:
     """
     Get user's documents with optional filtering.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param document_type: Filter by document type
+    :type document_type: Optional[str]
+    :param limit: Maximum number of documents to return
+    :type limit: int
+    :param offset: Number of documents to skip
+    :type offset: int
+    :return: List of user documents
+    :rtype: List[DocumentResponse]
     """
     query = db.query(Document).filter(Document.user_id == current_user.id)
     
@@ -56,9 +71,19 @@ async def get_document(
     document_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentResponse:
     """
     Get specific document by ID.
+    
+    :param document_id: Document ID to retrieve
+    :type document_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Document details
+    :rtype: DocumentResponse
+    :raises HTTPException: If document not found
     """
     document = db.query(Document).filter(
         and_(
@@ -83,9 +108,23 @@ async def upload_document(
     title: Optional[str] = Query(None, description="Document title"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentResponse:
     """
     Upload a document file.
+    
+    :param file: File to upload
+    :type file: UploadFile
+    :param document_type: Type of document
+    :type document_type: str
+    :param title: Document title
+    :type title: Optional[str]
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Created document record
+    :rtype: DocumentResponse
+    :raises HTTPException: If file type is invalid
     """
     # Validate file type
     if not validate_file_type(file.filename, allowed_types=['.pdf', '.docx', '.doc', '.txt']):
@@ -104,7 +143,7 @@ async def upload_document(
         document_type=document_type,
         file_path=file_path,
         file_name=file.filename,
-        file_size=file.size,
+        file_size=file.size or 0,
         is_generated=False,
         created_at=datetime.utcnow()
     )
@@ -122,9 +161,20 @@ async def generate_resume(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentResponse:
     """
     Generate a customized resume using AI.
+    
+    :param generation_request: Resume generation parameters
+    :type generation_request: ResumeGenerationRequest
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Generated resume document
+    :rtype: DocumentResponse
     """
     document_service = DocumentService(db)
     
@@ -176,9 +226,20 @@ async def generate_cover_letter(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentResponse:
     """
     Generate a customized cover letter using AI.
+    
+    :param generation_request: Cover letter generation parameters
+    :type generation_request: CoverLetterGenerationRequest
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Generated cover letter document
+    :rtype: DocumentResponse
     """
     document_service = DocumentService(db)
     
@@ -240,9 +301,21 @@ async def update_document(
     document_update: DocumentUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentResponse:
     """
     Update document content or metadata.
+    
+    :param document_id: Document ID to update
+    :type document_id: int
+    :param document_update: Document update data
+    :type document_update: DocumentUpdate
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Updated document
+    :rtype: DocumentResponse
+    :raises HTTPException: If document not found
     """
     document = db.query(Document).filter(
         and_(
@@ -274,9 +347,19 @@ async def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Delete a document and its associated files.
+    
+    :param document_id: Document ID to delete
+    :type document_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Deletion confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If document not found
     """
     document = db.query(Document).filter(
         and_(
@@ -311,9 +394,21 @@ async def download_document(
     format: str = Query("original", description="Download format: original, pdf, txt"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> FileResponse:
     """
     Download document in specified format.
+    
+    :param document_id: Document ID to download
+    :type document_id: int
+    :param format: Download format
+    :type format: str
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: File response with document
+    :rtype: FileResponse
+    :raises HTTPException: If document not found or format unavailable
     """
     document = db.query(Document).filter(
         and_(
@@ -377,9 +472,21 @@ async def generate_document_pdf(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Generate PDF version of document.
+    
+    :param document_id: Document ID to generate PDF for
+    :type document_id: int
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: PDF generation confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If document not found or has no content
     """
     document = db.query(Document).filter(
         and_(
@@ -411,9 +518,19 @@ async def analyze_document(
     file: UploadFile = File(...),
     analysis_type: str = Query("ats_score", description="Type of analysis: ats_score, keywords, suggestions"),
     current_user: User = Depends(get_current_active_user)
-):
+) -> DocumentAnalysis:
     """
     Analyze document for ATS compatibility, keywords, and suggestions.
+    
+    :param file: File to analyze
+    :type file: UploadFile
+    :param analysis_type: Type of analysis to perform
+    :type analysis_type: str
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Document analysis results
+    :rtype: DocumentAnalysis
+    :raises HTTPException: If file type invalid or analysis fails
     """
     # Validate file type
     if not validate_file_type(file.filename, allowed_types=['.pdf', '.docx', '.doc', '.txt']):
@@ -422,7 +539,7 @@ async def analyze_document(
             detail="Invalid file type for analysis"
         )
     
-    document_service = DocumentService()
+    document_service = DocumentService(db=None)
     
     try:
         # Extract text from uploaded file
@@ -433,12 +550,13 @@ async def analyze_document(
         )
         
         # Perform analysis based on type
+        analysis_result: Dict[str, Any]
         if analysis_type == "ats_score":
-            analysis = await document_service.analyze_ats_compatibility(extracted_text)
+            analysis_result = await document_service.analyze_ats_compatibility(extracted_text)
         elif analysis_type == "keywords":
-            analysis = await document_service.extract_keywords(extracted_text)
+            analysis_result = await document_service.extract_keywords(extracted_text)
         elif analysis_type == "suggestions":
-            analysis = await document_service.generate_improvement_suggestions(extracted_text)
+            analysis_result = await document_service.generate_improvement_suggestions(extracted_text)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -447,7 +565,7 @@ async def analyze_document(
         
         return DocumentAnalysis(
             analysis_type=analysis_type,
-            results=analysis,
+            results=analysis_result,
             timestamp=datetime.utcnow()
         )
         
@@ -462,11 +580,18 @@ async def analyze_document(
 async def get_document_templates(
     document_type: str = Query(..., description="Type of templates: resume, cover_letter"),
     current_user: User = Depends(get_current_active_user)
-):
+) -> List[DocumentTemplate]:
     """
     Get available document templates.
+    
+    :param document_type: Type of templates to retrieve
+    :type document_type: str
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: List of available templates
+    :rtype: List[DocumentTemplate]
     """
-    document_service = DocumentService()
+    document_service = DocumentService(db=None)
     templates = document_service.get_available_templates(document_type)
     
     return [
@@ -488,9 +613,21 @@ async def bulk_generate_documents(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, Any]:
     """
     Generate documents for multiple jobs in bulk.
+    
+    :param bulk_request: Bulk generation request data
+    :type bulk_request: BulkDocumentRequest
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Bulk generation initiation confirmation
+    :rtype: Dict[str, Any]
+    :raises HTTPException: If too many jobs requested
     """
     if len(bulk_request.job_ids) > 50:
         raise HTTPException(
@@ -519,9 +656,18 @@ async def get_document_usage_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     days: int = Query(30, description="Number of days to analyze")
-):
+) -> Dict[str, Any]:
     """
     Get document generation and usage statistics.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param days: Number of days to analyze
+    :type days: int
+    :return: Document usage statistics
+    :rtype: Dict[str, Any]
     """
     from datetime import timedelta
     
@@ -540,13 +686,13 @@ async def get_document_usage_stats(
     uploaded_documents = total_documents - generated_documents
     
     # Document type breakdown
-    type_breakdown = {}
+    type_breakdown: Dict[str, int] = {}
     for doc in documents:
         doc_type = doc.document_type
         type_breakdown[doc_type] = type_breakdown.get(doc_type, 0) + 1
     
     # Template usage
-    template_usage = {}
+    template_usage: Dict[str, int] = {}
     for doc in documents:
         if doc.template_used:
             template = doc.template_used
@@ -564,9 +710,14 @@ async def get_document_usage_stats(
     }
 
 
-async def _generate_document_pdf(document_id: int, db: Session):
+async def _generate_document_pdf(document_id: int, db: Session) -> None:
     """
     Background task to generate PDF from document content.
+    
+    :param document_id: Document ID to generate PDF for
+    :type document_id: int
+    :param db: Database session
+    :type db: Session
     """
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document or not document.content:
@@ -574,7 +725,11 @@ async def _generate_document_pdf(document_id: int, db: Session):
     
     try:
         # Generate PDF file
-        pdf_path = await generate_pdf(document.content, document.title, document.user_id)
+        pdf_path = await generate_pdf(
+            content=document.content, 
+            title=document.title, 
+            user_id=document.user_id
+        )
         
         # Update document with PDF path
         document.pdf_path = pdf_path
@@ -589,12 +744,22 @@ async def _process_bulk_document_generation(
     bulk_request: BulkDocumentRequest,
     user_id: int,
     db: Session
-):
+) -> None:
     """
     Background task to process bulk document generation.
+    
+    :param bulk_request: Bulk generation request data
+    :type bulk_request: BulkDocumentRequest
+    :param user_id: User ID for document generation
+    :type user_id: int
+    :param db: Database session
+    :type db: Session
     """
     document_service = DocumentService(db)
     user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        return
     
     successful_generations = 0
     failed_generations = 0
@@ -609,11 +774,14 @@ async def _process_bulk_document_generation(
             # Generate requested document types
             for doc_type in bulk_request.document_types:
                 try:
+                    content: str
                     if doc_type == "resume":
                         content = await document_service.generate_resume(
                             user=user,
                             job_description=job.description,
-                            template=bulk_request.template
+                            template=bulk_request.template,
+                            include_sections=None,
+                            focus_keywords=None
                         )
                     elif doc_type == "cover_letter":
                         content = await document_service.generate_cover_letter(
@@ -622,7 +790,10 @@ async def _process_bulk_document_generation(
                             company_name=job.company_name,
                             job_title=job.title,
                             job_description=job.description,
-                            template=bulk_request.template
+                            template=bulk_request.template,
+                            tone=None,
+                            key_achievements=None,
+                            custom_message=None
                         )
                     else:
                         continue
@@ -639,7 +810,8 @@ async def _process_bulk_document_generation(
                         generation_metadata={
                             "bulk_generated": True,
                             "model_used": "phi3"
-                        }
+                        },
+                        created_at=datetime.utcnow()
                     )
                     
                     db.add(document)
@@ -660,10 +832,14 @@ async def _process_bulk_document_generation(
     db.commit()
     
     # Send completion notification
-    from app.services.notification_service import NotificationService
-    notification_service = NotificationService()
-    await notification_service.send_bulk_generation_summary(
-        user_id=user_id,
-        successful=successful_generations,
-        failed=failed_generations
-    )
+    try:
+        from app.services.notification_service import NotificationService
+        notification_service = NotificationService()
+        await notification_service.send_bulk_generation_summary(
+            user_id=user_id,
+            successful=successful_generations,
+            failed=failed_generations
+        )
+    except ImportError:
+        # Handle case where notification service is not available
+        print(f"Bulk generation completed: {successful_generations} successful, {failed_generations} failed")

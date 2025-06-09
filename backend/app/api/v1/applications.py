@@ -1,3 +1,5 @@
+"""Application management endpoints for the job automation system."""
+
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -40,9 +42,34 @@ async def get_applications(
     date_to: Optional[datetime] = Query(None, description="Filter applications to date"),
     sort_by: str = Query("created_at", description="Sort field"),
     sort_order: str = Query("desc", description="Sort order (asc/desc)")
-):
+) -> List[ApplicationResponse]:
     """
     Get paginated list of user's job applications with filtering and sorting.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param limit: Maximum number of applications to return
+    :type limit: int
+    :param offset: Number of applications to skip
+    :type offset: int
+    :param status: Filter by application status
+    :type status: Optional[str]
+    :param company: Filter by company name
+    :type company: Optional[str]
+    :param job_title: Filter by job title
+    :type job_title: Optional[str]
+    :param date_from: Filter applications from date
+    :type date_from: Optional[datetime]
+    :param date_to: Filter applications to date
+    :type date_to: Optional[datetime]
+    :param sort_by: Sort field
+    :type sort_by: str
+    :param sort_order: Sort order (asc/desc)
+    :type sort_order: str
+    :return: List of user applications
+    :rtype: List[ApplicationResponse]
     """
     query = db.query(Application).filter(Application.user_id == current_user.id)
     
@@ -81,9 +108,19 @@ async def get_application(
     application_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> ApplicationResponse:
     """
     Get specific application by ID.
+    
+    :param application_id: Application ID to retrieve
+    :type application_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Application details
+    :rtype: ApplicationResponse
+    :raises HTTPException: If application not found
     """
     application = db.query(Application).filter(
         and_(
@@ -107,9 +144,21 @@ async def create_application(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> ApplicationResponse:
     """
     Create a new job application.
+    
+    :param application_data: Application creation data
+    :type application_data: ApplicationCreate
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Created application
+    :rtype: ApplicationResponse
+    :raises HTTPException: If duplicate application detected
     """
     application_manager = ApplicationManager(db)
     
@@ -176,9 +225,21 @@ async def update_application(
     application_data: ApplicationUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> ApplicationResponse:
     """
     Update an existing application.
+    
+    :param application_id: Application ID to update
+    :type application_id: int
+    :param application_data: Application update data
+    :type application_data: ApplicationUpdate
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Updated application
+    :rtype: ApplicationResponse
+    :raises HTTPException: If application not found
     """
     application = db.query(Application).filter(
         and_(
@@ -212,9 +273,23 @@ async def update_application_status(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> ApplicationResponse:
     """
     Update application status and add history entry.
+    
+    :param application_id: Application ID to update
+    :type application_id: int
+    :param status_update: Status update data
+    :type status_update: ApplicationStatusUpdate
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Updated application
+    :rtype: ApplicationResponse
+    :raises HTTPException: If application not found
     """
     application = db.query(Application).filter(
         and_(
@@ -276,9 +351,19 @@ async def get_application_history(
     application_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> List[Dict[str, Any]]:
     """
     Get application status history.
+    
+    :param application_id: Application ID to get history for
+    :type application_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Application history entries
+    :rtype: List[Dict[str, Any]]
+    :raises HTTPException: If application not found
     """
     application = db.query(Application).filter(
         and_(
@@ -316,9 +401,19 @@ async def delete_application(
     application_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, str]:
     """
     Delete an application.
+    
+    :param application_id: Application ID to delete
+    :type application_id: int
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Deletion confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If application not found
     """
     application = db.query(Application).filter(
         and_(
@@ -350,9 +445,18 @@ async def get_application_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     days: int = Query(30, description="Number of days to analyze")
-):
+) -> ApplicationStats:
     """
     Get application statistics for the user.
+    
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param days: Number of days to analyze
+    :type days: int
+    :return: Application statistics
+    :rtype: ApplicationStats
     """
     cutoff_date = datetime.utcnow() - timedelta(days=days)
     
@@ -367,7 +471,7 @@ async def get_application_stats(
     total_applications = len(applications)
     
     # Calculate status breakdown
-    status_counts = {}
+    status_counts: Dict[str, int] = {}
     for app in applications:
         status = app.status
         status_counts[status] = status_counts.get(status, 0) + 1
@@ -385,7 +489,7 @@ async def get_application_stats(
     offer_rate = (offers / total_applications * 100) if total_applications > 0 else 0
     
     # Top companies applied to
-    company_counts = {}
+    company_counts: Dict[str, int] = {}
     for app in applications:
         company = app.company_name
         company_counts[company] = company_counts.get(company, 0) + 1
@@ -412,9 +516,20 @@ async def bulk_apply_to_jobs(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-):
+) -> Dict[str, Any]:
     """
     Apply to multiple jobs in bulk.
+    
+    :param bulk_request: Bulk application request data
+    :type bulk_request: BulkApplicationRequest
+    :param background_tasks: Background task queue
+    :type background_tasks: BackgroundTasks
+    :param db: Database session
+    :type db: Session
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: Bulk application initiation confirmation
+    :rtype: Dict[str, Any]
     """
     application_service = ApplicationService(db)
     
@@ -437,9 +552,16 @@ async def _process_bulk_applications(
     bulk_request: BulkApplicationRequest,
     user_id: int,
     db: Session
-):
+) -> None:
     """
     Background task to process bulk job applications.
+    
+    :param bulk_request: Bulk application request data
+    :type bulk_request: BulkApplicationRequest
+    :param user_id: User ID for applications
+    :type user_id: int
+    :param db: Database session
+    :type db: Session
     """
     application_service = ApplicationService(db)
     application_manager = ApplicationManager(db)
@@ -507,108 +629,14 @@ async def _process_bulk_applications(
     )
 
 
-@router.get("/automation/settings")
-async def get_auto_application_settings(
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get user's auto-application settings.
-    """
-    return {
-        "enabled": current_user.auto_apply_enabled,
-        "max_applications_per_day": current_user.max_applications_per_day,
-        "preferred_job_titles": current_user.preferred_job_titles or [],
-        "preferred_locations": current_user.preferred_locations or [],
-        "excluded_companies": current_user.excluded_companies or [],
-        "salary_requirements": {
-            "min": current_user.salary_min,
-            "max": current_user.salary_max
-        },
-        "employment_types": current_user.employment_type,
-        "remote_preference": current_user.remote_preference
-    }
-
-
-@router.put("/automation/settings")
-async def update_auto_application_settings(
-    settings: AutoApplicationSettings,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update user's auto-application settings.
-    """
-    # Update user settings
-    current_user.auto_apply_enabled = settings.enabled
-    current_user.max_applications_per_day = settings.max_applications_per_day
-    current_user.preferred_job_titles = settings.preferred_job_titles
-    current_user.preferred_locations = settings.preferred_locations
-    current_user.excluded_companies = settings.excluded_companies
-    current_user.salary_min = settings.salary_min
-    current_user.salary_max = settings.salary_max
-    current_user.employment_type = settings.employment_types
-    current_user.remote_preference = settings.remote_preference
-    
-    db.commit()
-    
-    return {"message": "Auto-application settings updated successfully"}
-
-
-@router.post("/automation/test-run")
-async def test_auto_application(
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-    limit: int = Query(5, description="Maximum number of jobs to apply to in test run")
-):
-    """
-    Run a test of the auto-application system.
-    """
-    if not current_user.auto_apply_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Auto-application is not enabled. Please configure settings first."
-        )
-    
-    # Add test run task to background
-    background_tasks.add_task(
-        _run_auto_application_test,
-        current_user.id,
-        limit,
-        db
-    )
-    
-    return {
-        "message": "Auto-application test run initiated",
-        "max_applications": limit,
-        "note": "This is a test run. Review results before enabling full automation."
-    }
-
-
-async def _run_auto_application_test(user_id: int, limit: int, db: Session):
-    """
-    Background task to test auto-application system.
-    """
-    application_service = ApplicationService(db)
-    
-    # Run auto-application logic
-    results = await application_service.run_auto_application(
-        user_id=user_id,
-        max_applications=limit,
-        test_mode=True
-    )
-    
-    # Send test results notification
-    notification_service = NotificationService()
-    await notification_service.send_auto_application_test_results(
-        user_id=user_id,
-        results=results
-    )
-
-
-async def _send_application_notification(application_id: int, message: str):
+async def _send_application_notification(application_id: int, message: str) -> None:
     """
     Background task to send application-related notifications.
+    
+    :param application_id: Application ID for notification
+    :type application_id: int
+    :param message: Notification message
+    :type message: str
     """
     notification_service = NotificationService()
     await notification_service.send_application_update(application_id, message)
@@ -617,6 +645,11 @@ async def _send_application_notification(application_id: int, message: str):
 def _calculate_average_response_time(applications: List[Application]) -> float:
     """
     Calculate average response time for applications.
+    
+    :param applications: List of applications to analyze
+    :type applications: List[Application]
+    :return: Average response time in days
+    :rtype: float
     """
     response_times = []
     

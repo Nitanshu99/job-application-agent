@@ -1,4 +1,6 @@
-from typing import List, Optional
+"""User management endpoints for the job automation system."""
+
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -19,9 +21,14 @@ router = APIRouter()
 
 
 @router.get("/profile", response_model=UserProfile)
-async def get_user_profile(current_user: User = Depends(get_current_active_user)):
+async def get_user_profile(current_user: User = Depends(get_current_active_user)) -> UserProfile:
     """
     Get current user's detailed profile information.
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: User profile information
+    :rtype: UserProfile
     """
     return UserProfile.from_orm(current_user)
 
@@ -31,9 +38,18 @@ async def update_user_profile(
     profile_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> UserProfile:
     """
     Update current user's profile information.
+    
+    :param profile_data: Profile update data
+    :type profile_data: UserUpdate
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Updated user profile
+    :rtype: UserProfile
     """
     # Update user fields
     for field, value in profile_data.dict(exclude_unset=True).items():
@@ -47,9 +63,14 @@ async def update_user_profile(
 
 
 @router.get("/preferences", response_model=UserPreferences)
-async def get_user_preferences(current_user: User = Depends(get_current_active_user)):
+async def get_user_preferences(current_user: User = Depends(get_current_active_user)) -> UserPreferences:
     """
     Get current user's application preferences.
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: User preferences
+    :rtype: UserPreferences
     """
     return UserPreferences(
         preferred_job_titles=current_user.preferred_job_titles or [],
@@ -70,9 +91,18 @@ async def update_user_preferences(
     preferences: UserPreferences,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> UserPreferences:
     """
     Update current user's application preferences.
+    
+    :param preferences: User preference updates
+    :type preferences: UserPreferences
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Updated user preferences
+    :rtype: UserPreferences
     """
     # Update preference fields
     current_user.preferred_job_titles = preferences.preferred_job_titles
@@ -97,9 +127,19 @@ async def change_password(
     password_data: ChangePassword,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, str]:
     """
     Change current user's password.
+    
+    :param password_data: Password change data
+    :type password_data: ChangePassword
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Success message
+    :rtype: Dict[str, str]
+    :raises HTTPException: If current password is incorrect
     """
     # Verify current password
     if not verify_password(password_data.current_password, current_user.hashed_password):
@@ -119,9 +159,16 @@ async def change_password(
 async def delete_account(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, str]:
     """
     Delete current user's account (soft delete by deactivating).
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Deletion confirmation message
+    :rtype: Dict[str, str]
     """
     current_user.is_active = False
     current_user.deleted_at = db.execute("SELECT NOW()").scalar()
@@ -131,17 +178,24 @@ async def delete_account(
 
 
 @router.get("/stats")
-async def get_user_stats(current_user: User = Depends(get_current_active_user)):
+async def get_user_stats(current_user: User = Depends(get_current_active_user)) -> Dict[str, Any]:
     """
     Get user statistics (applications, success rate, etc.).
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :return: User statistics
+    :rtype: Dict[str, Any]
     """
     # This would typically involve complex queries across multiple tables
     # For now, returning basic stats structure
+    applications = current_user.applications or []
+    
     return {
-        "total_applications": len(current_user.applications) if current_user.applications else 0,
-        "active_applications": len([app for app in current_user.applications if app.status == "pending"]) if current_user.applications else 0,
-        "interviews_scheduled": len([app for app in current_user.applications if app.status == "interview"]) if current_user.applications else 0,
-        "offers_received": len([app for app in current_user.applications if app.status == "offer"]) if current_user.applications else 0,
+        "total_applications": len(applications),
+        "active_applications": len([app for app in applications if app.status == "pending"]),
+        "interviews_scheduled": len([app for app in applications if app.status == "interview"]),
+        "offers_received": len([app for app in applications if app.status == "offer"]),
         "applications_this_week": 0,  # Would calculate based on created_at
         "applications_this_month": 0,  # Would calculate based on created_at
         "success_rate": 0.0,  # Would calculate percentage
@@ -156,9 +210,18 @@ async def get_user_activity(
     current_user: User = Depends(get_current_active_user),
     limit: int = Query(20, description="Number of activities to return"),
     offset: int = Query(0, description="Number of activities to skip")
-):
+) -> Dict[str, Any]:
     """
     Get user's recent activity feed.
+    
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param limit: Maximum number of activities to return
+    :type limit: int
+    :param offset: Number of activities to skip
+    :type offset: int
+    :return: User activity data
+    :rtype: Dict[str, Any]
     """
     # This would typically query an activity/audit log table
     # For now, returning a basic structure
@@ -193,10 +256,23 @@ async def search_users(
     db: Session = Depends(get_db),
     limit: int = Query(50, description="Maximum number of users to return"),
     offset: int = Query(0, description="Number of users to skip")
-):
+) -> List[UserResponse]:
     """
     Search users (admin functionality or for networking features).
-    Note: This might be restricted to admin users in production.
+    
+    :param filters: User search filters
+    :type filters: UserSearchFilters
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :param limit: Maximum number of users to return
+    :type limit: int
+    :param offset: Number of users to skip
+    :type offset: int
+    :return: List of matching users
+    :rtype: List[UserResponse]
+    :note: This might be restricted to admin users in production
     """
     query = db.query(User)
     
@@ -230,9 +306,19 @@ async def get_user_by_id(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> UserProfile:
     """
     Get user profile by ID (admin functionality or for networking).
+    
+    :param user_id: Target user ID
+    :type user_id: int
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: User profile
+    :rtype: UserProfile
+    :raises HTTPException: If user not found or insufficient permissions
     """
     # Check if current user can access other user profiles
     if current_user.id != user_id and not current_user.is_superuser:
@@ -257,9 +343,21 @@ async def update_user_status(
     is_active: bool,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, str]:
     """
     Update user active status (admin only).
+    
+    :param user_id: Target user ID
+    :type user_id: int
+    :param is_active: New active status
+    :type is_active: bool
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Status update confirmation
+    :rtype: Dict[str, str]
+    :raises HTTPException: If user not found or insufficient permissions
     """
     if not current_user.is_superuser:
         raise HTTPException(
@@ -285,9 +383,19 @@ async def get_user_applications_summary(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Get summary of user's applications (for admin dashboard).
+    
+    :param user_id: Target user ID
+    :type user_id: int
+    :param current_user: Currently authenticated user
+    :type current_user: User
+    :param db: Database session
+    :type db: Session
+    :return: Application summary data
+    :rtype: Dict[str, Any]
+    :raises HTTPException: If user not found or insufficient permissions
     """
     if not current_user.is_superuser and current_user.id != user_id:
         raise HTTPException(
