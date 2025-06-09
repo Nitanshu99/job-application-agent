@@ -35,7 +35,6 @@ A comprehensive job application automation platform that generates personalized 
 
 The system uses a microservices architecture with sequential LLM usage to optimize resource consumption on MacBook Air M4:
 
-```
 
 ### 📋 Requirements Files Explained
 
@@ -68,6 +67,7 @@ pip install -r requirements-dev.txt
 
 # 4. Model services handled by Docker automatically
 docker-compose build  # Installs model-specific requirements
+```
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   API Gateway   │    │   User Service  │
