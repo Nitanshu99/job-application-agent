@@ -504,7 +504,9 @@ CMD ["python", "model_server.py"]
             requirements.append("mistral-common==1.0.0")
         
         requirements_file = model_dir / "requirements.txt"
-        requirements_file.write_text("\\n".join(requirements) + "\\n")
+        requirements_file.write_text("
+".join(requirements) + "
+")
         console.print(f"   ✅ Created requirements: {requirements_file}", style="green")
 
     def build_docker_image(self, model_key: str, force: bool = False) -> bool:
@@ -722,7 +724,8 @@ def download(models: List[str], all: bool, force: bool, hf_token: Optional[str])
         if manager.download_model(model_key, force=force):
             success_count += 1
     
-    console.print(f"\\n✅ Successfully downloaded {success_count}/{len(models_to_download)} models", style="green")
+    console.print(f"
+✅ Successfully downloaded {success_count}/{len(models_to_download)} models", style="green")
 
 
 @cli.command()
@@ -754,7 +757,8 @@ def setup(models: List[str], all: bool):
         if manager.setup_model_environment(model_key):
             success_count += 1
     
-    console.print(f"\\n✅ Successfully setup {success_count}/{len(models_to_setup)} models", style="green")
+    console.print(f"
+✅ Successfully setup {success_count}/{len(models_to_setup)} models", style="green")
 
 
 @cli.command()
@@ -791,7 +795,8 @@ def build(models: List[str], all: bool, force: bool):
         if manager.build_docker_image(model_key, force=force):
             success_count += 1
     
-    console.print(f"\\n✅ Successfully built {success_count}/{len(models_to_build)} images", style="green")
+    console.print(f"
+✅ Successfully built {success_count}/{len(models_to_build)} images", style="green")
 
 
 @cli.command()
@@ -835,26 +840,30 @@ def install_all(hf_token: Optional[str], force: bool):
     # Authenticate
     manager.authenticate_huggingface(hf_token)
     
-    console.print("\\n🔄 Starting complete installation process...", style="blue")
+    console.print("
+🔄 Starting complete installation process...", style="blue")
     
     all_models = list(ModelConfig.MODELS.keys())
     
     # Step 1: Download all models
-    console.print("\\n📥 Step 1: Downloading models...", style="blue")
+    console.print("
+📥 Step 1: Downloading models...", style="blue")
     download_success = 0
     for model_key in all_models:
         if manager.download_model(model_key, force=force):
             download_success += 1
     
     # Step 2: Setup environments
-    console.print("\\n⚙️ Step 2: Setting up environments...", style="blue")
+    console.print("
+⚙️ Step 2: Setting up environments...", style="blue")
     setup_success = 0
     for model_key in all_models:
         if manager.setup_model_environment(model_key):
             setup_success += 1
     
     # Step 3: Build Docker images
-    console.print("\\n🐳 Step 3: Building Docker images...", style="blue")
+    console.print("
+🐳 Step 3: Building Docker images...", style="blue")
     build_success = 0
     if manager.docker_client:
         for model_key in all_models:
@@ -864,7 +873,8 @@ def install_all(hf_token: Optional[str], force: bool):
         console.print("   ⚠️ Skipping Docker builds (Docker not available)", style="yellow")
     
     # Final status
-    console.print("\\n" + "="*60, style="green")
+    console.print("
+" + "="*60, style="green")
     console.print("🎉 Installation Complete!", style="bold green")
     console.print(f"   ✅ Downloaded: {download_success}/{len(all_models)} models", style="green")
     console.print(f"   ✅ Setup: {setup_success}/{len(all_models)} environments", style="green")
