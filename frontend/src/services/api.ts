@@ -1,50 +1,42 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import {
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
+import { getAuthToken, removeAuthToken, setAuthToken } from '../utils/auth';
+import type {
+  ApiResponse,
+  PaginatedResponse,
   User,
   UserProfile,
-  UserCreate,
-  UserUpdate,
-  Token,
-  LoginCredentials,
   Job,
-  JobSearchFilters,
   Application,
-  ApplicationCreate,
-  ApplicationUpdate,
   Document,
-  DocumentCreate,
-  JobPortal,
-  JobPortalCreate,
-  DashboardStats,
-  ApplicationStats,
-  AIProcessingStatus,
-  DuplicateCheck,
-  PaginatedResponse,
-  ApiResponse
-} from '../types';
-
-// API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_VERSION = '/api/v1';
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  ApiError
+} from '../types/api';
 
 class ApiService {
   private client: AxiosInstance;
-  private token: string | null = null;
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_BASE_URL}${API_VERSION}`,
+      baseURL: '/api/v1',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors() {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       (config) => {
-        if (this.token) {
-          config.headers.Authorization = `Bearer ${this.token}`;
+        const token = getAuthToken();
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
@@ -54,225 +46,181 @@ class ApiService {
     // Response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
+      (error: AxiosError<ApiError>) => {
+        const message = error.response?.data?.detail || 'An unexpected error occurred';
+        
         if (error.response?.status === 401) {
-          this.logout();
+          removeAuthToken();
+          toast.error('Session expired. Please login again.');
+          window.location.href = '/login';
+        } else if (error.response?.status >= 500) {
+          toast.error('Server error. Please try again later.');
+        } else if (error.response?.status === 422) {
+          toast.error('Invalid data. Please check your input.');
+        } else {
+          toast.error(message);
         }
+
         return Promise.reject(error);
       }
     );
-
-    // Load token from localStorage on initialization
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('access_token');
-    }
   }
 
-  setToken(token: string): void {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('access_token', token);
-    }
-  }
-
-  logout(): void {
-    this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-    }
+  private async request<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    url: string,
+    data?: any,
+    params?: any
+  ): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.request({
+      method,
+      url,
+      data,
+      params,
+    });
+    return response.data;
   }
 
   // Authentication endpoints
-  async login(credentials: LoginCredentials): Promise<Token> {
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
     const formData = new FormData();
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
 
-    const response = await this.client.post<Token>('/auth/login', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await this.client.post<LoginResponse>('/auth/login', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
+
+    const { access_token } = response.data;
+    setAuthToken(access_token);
     
-    this.setToken(response.data.access_token);
     return response.data;
   }
 
-  async register(userData: UserCreate): Promise<User> {
-    const response = await this.client.post<User>('/auth/register', userData);
-    return response.data;
+  async register(userData: RegisterRequest): Promise<ApiResponse<User>> {
+    return this.request<ApiResponse<User>>('POST', '/auth/register', userData);
   }
 
-  async refreshToken(): Promise<Token> {
-    const response = await this.client.post<Token>('/auth/refresh');
-    this.setToken(response.data.access_token);
-    return response.data;
+  async logout(): Promise<void> {
+    try {
+      await this.request<void>('POST', '/auth/logout');
+    } finally {
+      removeAuthToken();
+    }
+  }
+
+  async refreshToken(): Promise<LoginResponse> {
+    return this.request<LoginResponse>('POST', '/auth/refresh');
   }
 
   // User endpoints
-  async getCurrentUser(): Promise<UserProfile> {
-    const response = await this.client.get<UserProfile>('/users/profile');
-    return response.data;
+  async getUserProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('GET', '/users/profile');
   }
 
-  async updateProfile(userData: UserUpdate): Promise<UserProfile> {
-    const response = await this.client.put<UserProfile>('/users/profile', userData);
-    return response.data;
+  async updateUserProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+    return this.request<UserProfile>('PUT', '/users/profile', data);
   }
 
-  async getUserStats(): Promise<DashboardStats> {
-    const response = await this.client.get<DashboardStats>('/users/stats');
-    return response.data;
+  async getUserStatistics(): Promise<any> {
+    return this.request<any>('GET', '/users/statistics');
   }
 
   // Job endpoints
-  async searchJobs(filters: JobSearchFilters = {}, page = 1, perPage = 20): Promise<PaginatedResponse<Job>> {
-    const params = { ...filters, page, per_page: perPage };
-    const response = await this.client.get<PaginatedResponse<Job>>('/jobs/search', { params });
-    return response.data;
+  async searchJobs(params: {
+    query?: string;
+    location?: string;
+    job_type?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<Job>> {
+    return this.request<PaginatedResponse<Job>>('GET', '/jobs/search', undefined, params);
   }
 
-  async getJob(jobId: string): Promise<Job> {
-    const response = await this.client.get<Job>(`/jobs/${jobId}`);
-    return response.data;
+  async getJob(id: string): Promise<Job> {
+    return this.request<Job>('GET', `/jobs/${id}`);
   }
 
-  async analyzeJob(jobId: string): Promise<{ match_score: number; analysis: string }> {
-    const response = await this.client.post(`/jobs/${jobId}/analyze`);
-    return response.data;
+  async saveJob(jobId: string): Promise<ApiResponse<any>> {
+    return this.request<ApiResponse<any>>('POST', `/jobs/${jobId}/save`);
   }
 
-  async getJobRecommendations(): Promise<Job[]> {
-    const response = await this.client.get<Job[]>('/jobs/recommendations');
-    return response.data;
+  async unsaveJob(jobId: string): Promise<ApiResponse<any>> {
+    return this.request<ApiResponse<any>>('DELETE', `/jobs/${jobId}/save`);
+  }
+
+  async getSavedJobs(): Promise<PaginatedResponse<Job>> {
+    return this.request<PaginatedResponse<Job>>('GET', '/jobs/saved');
   }
 
   // Application endpoints
-  async getApplications(page = 1, perPage = 20): Promise<PaginatedResponse<Application>> {
-    const params = { page, per_page: perPage };
-    const response = await this.client.get<PaginatedResponse<Application>>('/applications', { params });
-    return response.data;
+  async getApplications(params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<Application>> {
+    return this.request<PaginatedResponse<Application>>('GET', '/applications', undefined, params);
   }
 
-  async getApplication(applicationId: string): Promise<Application> {
-    const response = await this.client.get<Application>(`/applications/${applicationId}`);
-    return response.data;
+  async getApplication(id: string): Promise<Application> {
+    return this.request<Application>('GET', `/applications/${id}`);
   }
 
-  async createApplication(applicationData: ApplicationCreate): Promise<Application> {
-    const response = await this.client.post<Application>('/applications', applicationData);
-    return response.data;
-  }
-
-  async updateApplication(applicationId: string, updates: ApplicationUpdate): Promise<Application> {
-    const response = await this.client.put<Application>(`/applications/${applicationId}`, updates);
-    return response.data;
-  }
-
-  async deleteApplication(applicationId: string): Promise<void> {
-    await this.client.delete(`/applications/${applicationId}`);
-  }
-
-  async checkDuplicate(jobId: string): Promise<DuplicateCheck> {
-    const response = await this.client.post<DuplicateCheck>('/applications/check-duplicate', { job_id: jobId });
-    return response.data;
-  }
-
-  async getApplicationStats(): Promise<ApplicationStats> {
-    const response = await this.client.get<ApplicationStats>('/applications/statistics');
-    return response.data;
-  }
-
-  async applyToJob(jobId: string, options: { 
-    generateResume?: boolean; 
-    generateCoverLetter?: boolean;
-    resumeId?: string;
-    coverLetterId?: string;
+  async createApplication(data: {
+    job_id: string;
+    application_method: 'manual' | 'automated';
+    notes?: string;
   }): Promise<Application> {
-    const response = await this.client.post<Application>(`/jobs/${jobId}/apply`, options);
-    return response.data;
+    return this.request<Application>('POST', '/applications', data);
+  }
+
+  async updateApplication(id: string, data: {
+    status?: string;
+    notes?: string;
+    follow_up_date?: string;
+  }): Promise<Application> {
+    return this.request<Application>('PUT', `/applications/${id}`, data);
+  }
+
+  async withdrawApplication(id: string, reason: string): Promise<Application> {
+    return this.request<Application>('POST', `/applications/${id}/withdraw`, { reason });
+  }
+
+  async getApplicationStatistics(): Promise<any> {
+    return this.request<any>('GET', '/applications/statistics');
   }
 
   // Document endpoints
   async getDocuments(): Promise<Document[]> {
-    const response = await this.client.get<Document[]>('/documents');
-    return response.data;
+    return this.request<Document[]>('GET', '/documents');
   }
 
-  async getDocument(documentId: string): Promise<Document> {
-    const response = await this.client.get<Document>(`/documents/${documentId}`);
-    return response.data;
-  }
-
-  async createDocument(documentData: DocumentCreate): Promise<Document> {
-    const response = await this.client.post<Document>('/documents', documentData);
-    return response.data;
-  }
-
-  async generateResume(options: {
-    jobId?: string;
-    jobDescription?: string;
-    template?: string;
-    skillsToHighlight?: string[];
+  async createDocument(data: {
+    document_type: 'resume' | 'cover_letter';
+    title: string;
+    content: string;
+    is_default?: boolean;
   }): Promise<Document> {
-    const response = await this.client.post<Document>('/documents/resume', options);
-    return response.data;
+    return this.request<Document>('POST', '/documents', data);
   }
 
-  async generateCoverLetter(options: {
-    jobId?: string;
-    jobDescription?: string;
-    template?: string;
-  }): Promise<Document> {
-    const response = await this.client.post<Document>('/documents/cover-letter', options);
-    return response.data;
+  async updateDocument(id: string, data: Partial<Document>): Promise<Document> {
+    return this.request<Document>('PUT', `/documents/${id}`, data);
   }
 
-  async updateDocument(documentId: string, content: string): Promise<Document> {
-    const response = await this.client.put<Document>(`/documents/${documentId}`, { content });
-    return response.data;
+  async deleteDocument(id: string): Promise<void> {
+    return this.request<void>('DELETE', `/documents/${id}`);
   }
 
-  async deleteDocument(documentId: string): Promise<void> {
-    await this.client.delete(`/documents/${documentId}`);
+  async generateResume(jobId: string): Promise<Document> {
+    return this.request<Document>('POST', `/documents/generate/resume`, { job_id: jobId });
   }
 
-  // Job Portal endpoints
-  async getJobPortals(): Promise<JobPortal[]> {
-    const response = await this.client.get<JobPortal[]>('/portals');
-    return response.data;
-  }
-
-  async createJobPortal(portalData: JobPortalCreate): Promise<JobPortal> {
-    const response = await this.client.post<JobPortal>('/portals', portalData);
-    return response.data;
-  }
-
-  async updateJobPortal(portalId: string, updates: Partial<JobPortalCreate>): Promise<JobPortal> {
-    const response = await this.client.put<JobPortal>(`/portals/${portalId}`, updates);
-    return response.data;
-  }
-
-  async deleteJobPortal(portalId: string): Promise<void> {
-    await this.client.delete(`/portals/${portalId}`);
-  }
-
-  async syncJobPortal(portalId: string): Promise<{ jobs_found: number; message: string }> {
-    const response = await this.client.post(`/portals/${portalId}/sync`);
-    return response.data;
-  }
-
-  // AI Status endpoints
-  async getAIStatus(): Promise<AIProcessingStatus> {
-    const response = await this.client.get<AIProcessingStatus>('/ai/status');
-    return response.data;
-  }
-
-  // Health check
-  async healthCheck(): Promise<{ status: string; message: string }> {
-    const response = await this.client.get('/health');
-    return response.data;
+  async generateCoverLetter(jobId: string): Promise<Document> {
+    return this.request<Document>('POST', `/documents/generate/cover-letter`, { job_id: jobId });
   }
 }
 
-// Export singleton instance
 export const apiService = new ApiService();
-export default apiService;
