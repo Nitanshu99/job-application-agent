@@ -1,16 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
+  typescript: {
+    ignoreBuildErrors: false,
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
-      },
-    ];
+  eslint: {
+    ignoreDuringBuilds: false,
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

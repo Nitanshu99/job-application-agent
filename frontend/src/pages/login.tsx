@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
 export default function Login() {
-  const { login, loading } = useAuth();
+  const { login, isLoggingIn } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -96,7 +96,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full"
-              isLoading={loading}
+              isLoading={isLoggingIn}
               disabled={!formData.username || !formData.password}
             >
               Sign In

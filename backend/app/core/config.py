@@ -20,13 +20,13 @@ from typing import Any, Dict, List, Optional, Union
 from functools import lru_cache
 
 from pydantic import (
-    BaseSettings, 
     PostgresDsn, 
     RedisDsn,
     validator,
     Field,
     EmailStr
 )
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

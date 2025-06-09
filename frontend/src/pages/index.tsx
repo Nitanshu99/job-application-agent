@@ -4,17 +4,17 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoadingUser } = useAuth();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoadingUser) {
       if (isAuthenticated) {
         router.push('/dashboard');
       } else {
         router.push('/login');
       }
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, isLoadingUser, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

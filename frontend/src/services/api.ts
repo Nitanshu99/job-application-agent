@@ -49,13 +49,13 @@ class ApiService {
       (error: AxiosError<ApiError>) => {
         const message = error.response?.data?.detail || 'An unexpected error occurred';
         
-        if (error.response?.status === 401) {
+        if (error.response?.status && error.response.status === 401) {
           removeAuthToken();
           toast.error('Session expired. Please login again.');
           window.location.href = '/login';
-        } else if (error.response?.status >= 500) {
+        } else if (error.response?.status && error.response.status >= 500) {
           toast.error('Server error. Please try again later.');
-        } else if (error.response?.status === 422) {
+        } else if (error.response?.status && error.response.status === 422) {
           toast.error('Invalid data. Please check your input.');
         } else {
           toast.error(message);

@@ -8,22 +8,15 @@ interface QueryProviderProps {
   children: ReactNode;
 }
 
-export const QueryProvider = ({ children }: QueryProviderProps) => {
+export function QueryProvider({ children }: QueryProviderProps) {
   const [queryClient] = useState(
     () => new QueryClient({
       defaultOptions: {
         queries: {
-          staleTime: 60 * 1000, // 1 minute
-          retry: (failureCount, error: any) => {
-            // Don't retry on auth errors
-            if (error?.response?.status === 401 || error?.response?.status === 403) {
-              return false;
-            }
-            return failureCount < 3;
-          },
-        },
-        mutations: {
+          staleTime: 5 * 60 * 1000, // 5 minutes
+          cacheTime: 10 * 60 * 1000, // 10 minutes
           retry: 1,
+          refetchOnWindowFocus: false,
         },
       },
     })
@@ -32,7 +25,9 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
     </QueryClientProvider>
   );
-};
+}
