@@ -187,6 +187,38 @@ def list_tables() -> list:
     """List all database table names."""
     return [model.__tablename__ for model in ALL_MODELS]
 
+
+def setup_model_relationships():
+    """
+    Set up database model relationships after all models are imported.
+    Returns True if successful, False otherwise.
+    """
+    try:
+        # User relationships
+        User.jobs = relationship("Job", back_populates="user")
+        User.applications = relationship("Application", back_populates="user")
+        User.documents = relationship("Document", back_populates="user")
+        
+        # Job relationships
+        Job.applications = relationship("Application", back_populates="job")
+        Job.user = relationship("User", back_populates="jobs")
+        
+        # Application relationships
+        Application.user = relationship("User", back_populates="applications")
+        Application.job = relationship("Job", back_populates="applications")
+        Application.history = relationship("ApplicationHistory", back_populates="application")
+        
+        # Document relationships
+        Document.user = relationship("User", back_populates="documents")
+        
+        # ApplicationHistory relationships
+        ApplicationHistory.application = relationship("Application", back_populates="history")
+        
+        return True
+    except Exception as e:
+        print(f"Error setting up model relationships: {e}")
+        return False
+
 def validate_models():
     """
     Validate that all models are properly defined and importable.
@@ -298,3 +330,6 @@ except Exception as e:
 
 # Export version for compatibility checking
 __version__ = MODEL_INFO["version"]
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy import event

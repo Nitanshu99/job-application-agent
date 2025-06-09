@@ -416,7 +416,10 @@ class ApplicationService:
             if not db:
                 db = next(get_db())
             
-            application = await self.get_application_status(application_id, user_id, db)
+            application = db.query(Application).filter(
+        Application.id == application_id,
+        Application.user_id == user_id
+    ).first()
             if not application:
                 return None
             
@@ -424,7 +427,7 @@ class ApplicationService:
             application.updated_at = datetime.utcnow()
             
             if notes:
-                if not application.notes:
+                if application.notes is None:
                     application.notes = []
                 application.notes.append({
                     "timestamp": datetime.utcnow().isoformat(),

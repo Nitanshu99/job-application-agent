@@ -213,3 +213,18 @@ DocumentSchemaType = Union[DocumentCreate, DocumentUpdate, DocumentResponse]
 PaginatedResponse = Dict[str, Any]  # Will be defined in common.py when created
 ErrorResponse = Dict[str, Any]      # Will be defined in common.py when created
 SuccessResponse = Dict[str, Any]    # Will be defined in common.py when created
+# Import all schema classes
+from .user import (
+    UserCreate, UserUpdate, UserResponse, UserPasswordUpdate,
+    UserPreferences, UserPreferencesUpdate, UserStats
+)
+from .job import (
+    JobBase, JobCreate, JobUpdate, JobResponse, JobSummary,
+    JobSearch, JobMatch, JobAnalytics, JobAlert, JobBulkAction
+)
+from .document import (
+    DocumentCreate, DocumentUpdate, DocumentResponse, DocumentSummary,
+    DocumentGeneration, DocumentGenerationResponse, DocumentTemplate,
+    DocumentExport, DocumentComparison, DocumentAnalytics,
+    DocumentBulkAction, DocumentVersion
+)

@@ -218,7 +218,7 @@ class UserPreferences(BaseModel):
         if v:
             for job_type in v:
                 if job_type not in valid_types:
-                    raise ValueError(f'Invalid job type: {job_type}. Must be one of: {valid_types}')
+                    raise ValueError(f'Invalid job type: {job_type}. Must be one of: {VALID_USER_TYPES}')
         return v
 
 
@@ -247,7 +247,7 @@ class UserPreferencesUpdate(BaseModel):
             valid_types = ['full-time', 'part-time', 'contract', 'temporary', 'internship', 'volunteer']
             for job_type in v:
                 if job_type not in valid_types:
-                    raise ValueError(f'Invalid job type: {job_type}. Must be one of: {valid_types}')
+                    raise ValueError(f'Invalid job type: {job_type}. Must be one of: {VALID_USER_TYPES}')
         return v
 
 

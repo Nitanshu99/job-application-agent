@@ -1,4 +1,5 @@
 """
+from typing import List
 Resume Template Generator
 
 This module provides templates for generating professional resumes with various formats
@@ -122,8 +123,16 @@ class ProfessionalResumeTemplate(BaseResumeTemplate):
         
         # Languages
         if self.data.languages:
-            sections.append(self._generate_languages())
+    def _generate_languages(self) -> str:
+        """Generate languages section"""
+        lang_lines = ["Languages"]
         
+        for language, level in self.data.languages.items():
+            lang_lines.append(f"{language}: {level}")
+        
+        return "\n".join(lang_lines)
+        
+            sections.append(self._generate_languages())
         # Additional sections
         if self.data.additional_sections:
             sections.append(self._generate_additional_sections())
@@ -246,6 +255,11 @@ class ProfessionalResumeTemplate(BaseResumeTemplate):
     def _generate_languages(self) -> str:
         """Generate languages section"""
         lang_lines = ["Languages"]
+        
+        for language, level in self.data.languages.items():
+            lang_lines.append(f"{language}: {level}")
+        
+        return "\n".join(lang_lines)
         
         for language, level in self.data.languages.items():
             lang_lines.append(f"{language}: {level}")
@@ -619,3 +633,15 @@ if __name__ == "__main__":
         resume_content = generate_resume(template_type, sample_data)
         print(resume_content)
         print("\n" + "="*50)
+
+    def format_date_range(self, start_date: str, end_date: str) -> str:
+        """Format date range for display."""
+        if end_date == "present" or end_date == "current":
+            return f"{start_date} - Present"
+        return f"{start_date} - {end_date}"
+
+    def format_technologies(self, technologies: List[str]) -> str:
+        """Format technologies list for display."""
+        if not technologies:
+            return "N/A"
+        return ", ".join(technologies)
