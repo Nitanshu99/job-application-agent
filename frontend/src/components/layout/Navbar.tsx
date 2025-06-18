@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { clsx } from 'clsx';
+import clsx from 'clsx';
 import { Button } from '../ui/Button';
 import { User } from '../../types';
 

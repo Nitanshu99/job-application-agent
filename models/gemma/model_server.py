@@ -89,13 +89,13 @@ class HealthResponse(BaseModel):
     timestamp: str
 
 async def load_model():
-    """Load Gemma 7B model and tokenizer"""
+    """Load Gemma 2B model and tokenizer"""
     global model, tokenizer, text_generator
     
     try:
-        logger.info("Loading Gemma 7B model...")
+        logger.info("Loading Gemma 2B model...")
         
-        model_name = "google/gemma-7b-it"
+        model_name = "google/gemma-2-2b"
         
         # Load tokenizer
         tokenizer = AutoTokenizer.from_pretrained(

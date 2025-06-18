@@ -1,19 +1,19 @@
 # Base ML framework
-torch==2.1.1
-transformers==4.36.0
-accelerate==0.24.1
-tokenizers==0.15.0
+torch
+transformers
+accelerate
+tokenizers
 
 # API framework
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.5.0
+fastapi
+uvicorn
+pydantic
 
 # Optimization
-bitsandbytes==0.41.3
+bitsandbytes
 
 # Health checks
-httpx==0.25.2
+httpx
 
 # Mistral specific
-mistral-common==1.0.0
+mistral-common

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '../services/api';
 import { getUserData, isAuthenticated, removeAuthToken, setUserData } from '../utils/auth';
-import type { LoginRequest, RegisterRequest, User } from '../types/api';
+import type { LoginRequest, RegisterRequest } from '../types/api';
 import { toast } from 'react-hot-toast';
 
 export const useAuth = () => {

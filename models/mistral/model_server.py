@@ -111,7 +111,7 @@ async def load_model():
     try:
         logger.info("Loading Mistral 7B model...")
         
-        model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+        model_name = "mistralai/Mistral-7B-Instruct-v0.3"
         
         # Load tokenizer
         tokenizer = AutoTokenizer.from_pretrained(

@@ -53,7 +53,11 @@ class ApiService {
           removeAuthToken();
           toast.error('Session expired. Please login again.');
           window.location.href = '/login';
-        } else if (error.response?.status >= 500) {
+        } else if (
+          error.response &&
+          typeof error.response.status === 'number' &&
+          error.response.status >= 500
+        ) {
           toast.error('Server error. Please try again later.');
         } else if (error.response?.status === 422) {
           toast.error('Invalid data. Please check your input.');

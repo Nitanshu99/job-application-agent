@@ -39,29 +39,29 @@ class ModelConfig:
             "hf_model_id": "microsoft/Phi-3-mini-4k-instruct",
             "local_path": "models/phi3/model_files",
             "service_port": 8001,
-            "memory_requirement": "2GB",
+            "memory_requirement": "3GB",
             "description": "Microsoft Phi-3 Mini - optimized for document generation",
             "use_case": "Resume and cover letter generation",
             "quantization": True,
             "torch_dtype": "float16"
         },
         "gemma": {
-            "name": "Gemma 7B",
-            "hf_model_id": "google/gemma-7b-it",
+            "name": "Gemma 2B",
+            "hf_model_id": "google/gemma-2-2b",
             "local_path": "models/gemma/model_files", 
             "service_port": 8002,
-            "memory_requirement": "4GB",
-            "description": "Google Gemma 7B - intelligent job matching and analysis",
+            "memory_requirement": "3GB",
+            "description": "Google Gemma 2B - intelligent job matching and analysis",
             "use_case": "Job parsing and relevance scoring",
             "quantization": True,
             "torch_dtype": "float16"
         },
         "mistral": {
             "name": "Mistral 7B Instruct",
-            "hf_model_id": "mistralai/Mistral-7B-Instruct-v0.2",
+            "hf_model_id": "mistralai/Mistral-7B-Instruct-v0.3",
             "local_path": "models/mistral/model_files",
             "service_port": 8003,
-            "memory_requirement": "3GB", 
+            "memory_requirement": "8GB", 
             "description": "Mistral 7B Instruct - automated application filling",
             "use_case": "Application form automation and submission",
             "quantization": True,
@@ -504,9 +504,7 @@ CMD ["python", "model_server.py"]
             requirements.append("mistral-common==1.0.0")
         
         requirements_file = model_dir / "requirements.txt"
-        requirements_file.write_text("
-".join(requirements) + "
-")
+        requirements_file.write_text("\n".join(requirements) + "\n")
         console.print(f"   ✅ Created requirements: {requirements_file}", style="green")
 
     def build_docker_image(self, model_key: str, force: bool = False) -> bool:
@@ -724,8 +722,7 @@ def download(models: List[str], all: bool, force: bool, hf_token: Optional[str])
         if manager.download_model(model_key, force=force):
             success_count += 1
     
-    console.print(f"
-✅ Successfully downloaded {success_count}/{len(models_to_download)} models", style="green")
+    console.print(f"✅ Successfully downloaded {success_count}/{len(models_to_download)} models", style="green")
 
 
 @cli.command()
@@ -757,8 +754,7 @@ def setup(models: List[str], all: bool):
         if manager.setup_model_environment(model_key):
             success_count += 1
     
-    console.print(f"
-✅ Successfully setup {success_count}/{len(models_to_setup)} models", style="green")
+    console.print(f"✅ Successfully setup {success_count}/{len(models_to_setup)} models", style="green")
 
 
 @cli.command()
@@ -795,8 +791,7 @@ def build(models: List[str], all: bool, force: bool):
         if manager.build_docker_image(model_key, force=force):
             success_count += 1
     
-    console.print(f"
-✅ Successfully built {success_count}/{len(models_to_build)} images", style="green")
+    console.print(f"✅ Successfully built {success_count}/{len(models_to_build)} images", style="green")
 
 
 @cli.command()
@@ -840,30 +835,26 @@ def install_all(hf_token: Optional[str], force: bool):
     # Authenticate
     manager.authenticate_huggingface(hf_token)
     
-    console.print("
-🔄 Starting complete installation process...", style="blue")
+    console.print("🔄 Starting complete installation process...", style="blue")
     
     all_models = list(ModelConfig.MODELS.keys())
     
     # Step 1: Download all models
-    console.print("
-📥 Step 1: Downloading models...", style="blue")
+    console.print("📥 Step 1: Downloading models...", style="blue")
     download_success = 0
     for model_key in all_models:
         if manager.download_model(model_key, force=force):
             download_success += 1
     
     # Step 2: Setup environments
-    console.print("
-⚙️ Step 2: Setting up environments...", style="blue")
+    console.print("⚙️ Step 2: Setting up environments...", style="blue")
     setup_success = 0
     for model_key in all_models:
         if manager.setup_model_environment(model_key):
             setup_success += 1
     
     # Step 3: Build Docker images
-    console.print("
-🐳 Step 3: Building Docker images...", style="blue")
+    console.print("🐳 Step 3: Building Docker images...", style="blue")
     build_success = 0
     if manager.docker_client:
         for model_key in all_models:
@@ -873,8 +864,7 @@ def install_all(hf_token: Optional[str], force: bool):
         console.print("   ⚠️ Skipping Docker builds (Docker not available)", style="yellow")
     
     # Final status
-    console.print("
-" + "="*60, style="green")
+    console.print("" + "="*60, style="green")
     console.print("🎉 Installation Complete!", style="bold green")
     console.print(f"   ✅ Downloaded: {download_success}/{len(all_models)} models", style="green")
     console.print(f"   ✅ Setup: {setup_success}/{len(all_models)} environments", style="green")
